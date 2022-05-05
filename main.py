@@ -1,179 +1,214 @@
-from thompson import *
-from directo import *
+from lectorArchivos import *
 
-def conversion(cadena):
-    cadena2 = ""
-    operadores_concatenacion = [")", "*", "+", "?"]
-    for c in range(len(cadena)):
-        cadena2 += cadena[c]    
-        if c < len(cadena)-1:
-        
-            if cadena[c] in operadores_concatenacion and verificador(cadena[c+1]):
-                cadena2 += "."
-            elif verificador(cadena[c]) and cadena[c+1] == "(":
-                print(c)
-                cadena2 += "."
+# Main
 
-            elif verificador(cadena[c]) and verificador(cadena[c+1]):
-                cadena2 += "."
+fileName = input("Ingrese el nombre de su archivo ")
 
-            elif cadena[c]== ")" and cadena[c+1]=="(":
-                cadena2 += "."
+archivo = open(fileName, 'r', encoding='utf-8')
+lineas = archivo.readlines()
 
-            elif cadena[c] =="+" and cadena[c+1] == "(":
-                cadena2 += "."
-            
-            elif cadena[c] =="*" and cadena[c+1] == "(":
-                cadena2 += "."
+identCompiler = None
+identEndCompiler = None
+thereIsBeginCommet = None
+thereIsEndCommet = None
+readCharacters = None
+readKeywords = None
+readTokens = None
+readProductions = None
+readWhitespace = None
 
-            elif cadena[c] =="?" and cadena[c+1] == "(":
-                cadena2 += "."
+dictCharacters = {}
+dictKeywords = {}
+dictTokens = {}
+whiteSpace = None
 
-    return cadena2
+pilaComentario = ''
+lineaAnterior = ''
+contador = 0
 
+agrupacion = set()
+for i in range(9, 128):
+    agrupacion.add(i)
+    agrupacion.add(241)
+    agrupacion.add(209)
 
-def verificador(caracter):
-    operadores = ['*', '+','?', '.', "|", "(", ")"]
-    return caracter not in operadores
-
-        
-# c = conversion("((a|b)c)*")
-# a = Thompson(c)
-# b = a.compilar()  
+dictCharacters[ANY] = agrupacion
 
 
-# #print(conversion("((a|b)c)*"))
-# #a.graficar()
-# d = a.simulacion_afn(b,'zz')
+for linea in lineas:
+    if not identCompiler:
+        identCompiler = get_encabezado(linea)
+        if identCompiler:
+            identCompiler = identCompiler.strip()
+        continue
 
-# if d:
-#     print("Si")
-# else:
-#     print("no")
+    if identCompiler:
+        identEndCompiler = encontrar_final(linea)
+        if identEndCompiler:
+            identEndCompiler = identEndCompiler.strip()
 
+        if identEndCompiler:
+            if identEndCompiler[-1] != DOT:
+                identEndCompiler = identEndCompiler + DOT
 
-# ---------------------
-#AFD = a.simul2('bbb',       )
-#a = AnalizadorLexico("((a|b)|c)*")
-#print(a.convertir_postfix())
-
-# -----------------------
-
-ex = input("Ingrese la expresion deseada --> ")
-afn = None
-afd = None
-alpha = "abcdefghijklmnopqrstuvwxyz0123456789E"
-operadores = "*|+?()"
-
-print("  ------------------------------ ")
-print("           Menu                  ")
-print("  ------------------------------ ")
-print("")
-
-
-
-while True:
-    print("0. Cambiar expresion regular")
-    print("1. Algoritmo de Thompson")
-    print("2. Algoritmo por medio de subconjuntos")
-    print("3. Simulacion de AFN")
-    print("4. Simulacion de AFD")
-    print("5. Directo")
-    print("6. Salir")
-    print("")
-    
-    opcion = input("Elige una opcion del menu: ")
-    
-    c = conversion(ex)
-    print(c)
-
-
-    if opcion == "1":
-        a = Thompson(c)
-        afn = a.compilar()
-        a.graficar()
-
-
-    elif opcion == "2":
-        if afn is not None:
-            afd = a.subset(afn)
-            a.graph2(afd)
-
-
-    elif opcion == "0":
-        ex = input("Ingrese la expresion deseada --> ")
-
-    elif opcion == "3":
-        try:
-            if afn is not None:
-                cadena = input("Ingrese la cadena deseada ")
-                d = a.simulacion_afn(afn,cadena)
-                if d:
-                    print("")
-                    print("Si es aceptada la cadena")
-                    print("")
-                else:
-                    print("")
-                    print("No es aceptada la cadena")
-                    print("")
-            else:
-                print("No se ha creado ningun AFN")
-        except:
-            print("Cadena no valida")
-    
-    elif opcion == "4":
-        if afd is not None:
-            cadena = input("Ingrese la cadena deseada ")
-            d = a.simul2(cadena, afd)
-            # ----------------------------------------
-            if d:
-                print("")
-                print("Si es aceptada la cadena")
-                print("")
-            else:
-                print("")
-                print("No es aceptada la cadena")
-                print("")
-        else:
-            print("No se ha creado ningun AFD")
-            
-
-
-    elif opcion == "5":
-        print("--- Directo ---")
-        bandera = False
-        for i in ex:
-            if i not in alpha and i not in operadores:
-                print("Input invalido")
-                bandera = True
+            if (identEndCompiler[:-1] == identCompiler):
                 break
+            elif (identEndCompiler[:-1] != identCompiler):
+                print("Error de COMPILER")
+                exit()
+
+
+    if not thereIsBeginCommet:
+        thereIsBeginCommet, pilaComentario = verificar_inicio_comentario(linea)
+        if thereIsBeginCommet:
+            comentario = ''
+            thereIsEndCommet, comentario = verificar_final_comentario(linea)
+
+            if thereIsEndCommet:
+                pilaComentario = pilaComentario + '\n' + comentario
+                thereIsBeginCommet = False
+                thereIsEndCommet = False
+
+            else:
+                pilaComentario = pilaComentario + '\n' + linea
+            continue
+
+    if thereIsBeginCommet:
+        comentario = ''
+        thereIsEndCommet, comentario = verificar_final_comentario(linea)
+
+        if thereIsEndCommet:
+            pilaComentario = pilaComentario + '\n' + comentario
+            thereIsBeginCommet = False
+            thereIsEndCommet = False
+
+        else:
+            pilaComentario = pilaComentario + '\n' + linea
         
-        if not bandera:
-            cadena = input("Ingrese la cadena que deesea evaluar: ")
-            print("")
+        continue
+    
 
-            automata_nuevo = Directo(ex)
+    if linea.strip() == CHARACTERS:
+        readCharacters = True
+        readKeywords = False
+        readTokens = False
+        readProductions = False
+        continue
+    elif linea.strip() == KEYWORDS:
+        readCharacters = False
+        readKeywords = True
+        readTokens = False
+        readProductions = False
+        continue
+    elif linea.strip() == TOKENS:
+        readCharacters = False
+        readKeywords = False
+        readTokens = True
+        readProductions = False
+        continue
+    elif linea.strip() == PRODUCTIONS:
+        readCharacters = False
+        readKeywords = False
+        readTokens = False
+        readProductions = True
+        continue
+    elif definir_ignore(linea.strip()) != None:
+        whiteSpace = definir_ignore(linea.strip()).strip()
 
-            estados = {state.signo for state in automata_nuevo.estados}
-            estado_inicial = automata_nuevo.estado0
-            estados_aceoatacion_finales = {state for state in automata_nuevo.estdosAceptacion}
-            trans_func = trans_func_afd(automata_nuevo.transiciones)
+        ### Revisar si el whiteSpace corresponde a un SET
+        whiteSpace = whiteSpace.strip().replace("' '", 'CHR(32)').replace(' ', '')
+        whiteSpace = whiteSpace.strip('\n').strip('\t').strip()
 
-            verifiacacion_validez = simulate_afd(cadena, estado_inicial, estados_aceoatacion_finales, automata_nuevo.transiciones)
-            print("La cadena es aceptada por el AFD --> ", verifiacacion_validez)
+        if whiteSpace[-1] != DOT:
+            whiteSpace = whiteSpace + '.'
 
-            print("Estados del AFN --> ", estados)
-            print("Estado Inicial --> ", estado_inicial)
-            print("Estados de aceptacion --> ", estados_aceoatacion_finales)
-            print("Tabla de transiciones --> ", trans_func)
+        whiteSpace = pre_procesamiento(whiteSpace, dictCharacters)
 
-            local_graph(estados, estado_inicial, estados_aceoatacion_finales, trans_func, "Directo")
-
-
-    elif opcion == "6":
-        print("Una ayudita con la nota, gracias")
-        break
+        ### Determinar que no se esta leyendo CHARACTERS, TOKENS, KEYWORDS, ni PRODUCTIONS
+        readCharacters = False
+        readKeywords = False
+        readTokens = False
+        readProductions = False
+        continue
 
 
+    if linea.strip() == '':
+        continue
+
+    linea = lineaAnterior + linea.strip('\n').strip('\t').strip()
+
+    contador = contador + 1
 
 
+    if readCharacters:
+
+        if linea.strip('\n').strip('\t').strip()[-1] != DOT:
+            lineaAnterior = linea.strip('\n').strip('\t').strip()
+            continue
+
+        ### Extraer el ident y el SET
+        particionCharacter = linea.partition('=')
+        identCharacter = particionCharacter[0].strip()
+        setCharacter = particionCharacter[2].strip().replace("' '", 'CHR(32)').replace(' ', '')
+        setCharacter = setCharacter.strip('\n').strip('\t').strip()
+
+        if setCharacter[-1] == DOT:
+            lineaAnterior = ''
+
+            setCharacter = pre_procesamiento(setCharacter, dictCharacters)
+            dictCharacters[identCharacter] = setCharacter
+
+        else:
+            lineaAnterior = linea.strip('\n').strip('\t').strip()
+
+        continue
+
+    ### Si estoy leyendo KETWORDS los proceso como corresponde
+    if readKeywords:
+        if linea.strip('\n').strip('\t').strip()[-1] != DOT:
+            lineaAnterior = linea.strip('\n').strip('\t').strip()
+            continue
+
+        particionKeywords = linea.partition('=')
+        identKeyword = particionKeywords[0].strip().replace(' ', '')
+        setKeyword = particionKeywords[2].strip().replace('"', '').replace("' '", 'CHR(32)').replace(' ', '')
+        setKeyword = setKeyword.strip('\n').strip('\t').strip()
+
+        if setKeyword[-1] == DOT:
+            lineaAnterior = ''
+            dictKeywords[identKeyword] = setKeyword[:-1]
+        else:
+            lineaAnterior = linea.strip('\n').strip('\t').strip()
+
+        continue
+
+    if readTokens:
+        if linea.strip('\n').strip('\t').strip()[-1] != DOT:
+            lineaAnterior = linea.strip('\n').strip('\t').strip()
+            continue
+
+
+        particionTokens = linea.partition('=')
+        identTokens = particionTokens[0].strip()
+        setTokens = particionTokens[2].strip('\n').strip('\t').strip()
+
+        if setTokens[-1] == DOT:
+            lineaAnterior = ''
+
+            expresionRegular, bandera = manenjo_de_token(setTokens[:-1], dictCharacters)
+
+            dictTokens[identTokens] = [expresionRegular, bandera]
+        else:
+            lineaAnterior = linea.strip('\n').strip('\t').strip()
+
+        continue
+
+    if readProductions:
+        pass
+
+expresion = ''
+for regex in dictTokens.values():
+    expresion = expresion + '(' + regex[0] + ')#|'
+
+expresion = expresion[:-1]
+bridge.automata(expresion, dictTokens, dictKeywords, whiteSpace)
