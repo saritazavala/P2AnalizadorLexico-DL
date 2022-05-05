@@ -1,282 +1,340 @@
-from utilidades_directo import *
-from funciones_trans import *
-from AnalizadorLexico import *
 
-#AnalizadorLexico = analizador
-alpha = "abcdefghijklmnopqrstuvwxyz0123456789E#"
-class Directo:
-    def __init__(self, expresion):
-        self.estados = []
-        self.estado0 = None
-        self.estadoF = None
-        self.estdosAceptacion = []
-        self.transiciones = []
-        self.alpha = []
+import copy
+from Nodo import *
 
-        self.nombre = 0
-        self.n_utilizados = 0
-        self.arbol = 0
-        self.nodos = []
-        self.posiciones = {}
-        self.epicentro = None
+### Funcion que permite determinar si un caracter es un operador
+def is_op(a):
+    if a == '+' or a == '*' or a == '?' or a == '|':
+        return True
+    return False
 
-        regular_exp_mod = transform_exp(expresion, 2)
-        regular_exp_mod = add_concat(regular_exp_mod)
-        self.create_sintx_tree(regular_exp_mod)
+### Funcion que permite contruir un AFD para el OR
+def orAFD(nodos, nodo2):
+    nodo = Nodo('')
+    nodo.transicionOrAFD(nodos[0], nodo2)
+    return nodo
 
-        for x in self.nodos:
-            if x.signo == '#':
-                self.estadoF = x.arbol
-                break
+### Funcion que permite contruir un AFD para la CONCATENCION
+def concatAFD(nodos, nodo2):
+    nodo = Nodo('')
+    nodo.transicionConcatAFD(nodos[0], nodo2)
+    return nodo
 
-        self.get_all_follow_pos()
-        self.create()
+### Funcion que permite contruir un AFD para la cerradura KLEEN
+def cerraduraAFD(nodos):
+    nodo = Nodo('')
+    nodo.transicionCerraduraAFD(nodos[0])
 
-    def set_name(self):
-        possible_names = "ABCDFGHIJKLMNOPQRSTUVWXYZ"
-        name = possible_names[self.nombre]
-        self.nombre += 1
+    return nodo
 
-        if self.nombre == len(possible_names):
-            self.n_utilizados += 1
-            self.nombre = 0
-        return name + str(self.n_utilizados)
-
-    def get_precedence_of_two(self, first, second):
-        pre_fir = precedencia_op(first)
-        pre_sec = precedencia_op(second)
-        return pre_fir >= pre_sec
-
-
-   
-    def create_sintx_tree(self, expresion):
-        caracteres = []
-        operadores = []
-
-      
-        for i in expresion:
-            if i in alpha:
-                caracteres.append(i)
-
-        
-            elif i == "(":
-                operadores.append(i)
-
-            elif i == ")":
-                caracter_final = operadores[-1] if operadores else None
-                while caracter_final is not None and caracter_final[0] != "(":
-                    epi = self.get_operations(operadores, caracteres)
-                    caracteres.append(epi)
-                    caracter_final = operadores[-1] if operadores else None
-                operadores.pop()
-
-            else:
-                caracter_final = operadores[-1] if operadores else None
-                while caracter_final is not None and caracter_final not in "()" and self.get_precedence_of_two(caracter_final, i):
-                    epi = self.get_operations(operadores, caracteres)
-                    caracteres.append(epi)
-                    caracter_final = operadores[-1] if operadores else None
-                operadores.append(i)
-
-
-        final = self.get_operations(operadores, caracteres)
-        caracteres.append(final)
-        self.epicentro = caracteres.pop()
-
-
-    def get_operations(self, operadores, caracteres):
-        op = operadores.pop()
-        derecha = caracteres.pop()
-        izquierda = None
-
-       
-        if (derecha not in self.alpha) and (derecha != "E") and (derecha !=  "#") and (derecha is not None):
-            self.alpha.append(derecha)
-        
-
-        if op != "*":
-            izquierda = caracteres.pop()
-            if (izquierda not in self.alpha) and (izquierda != "E") and (izquierda !=  "#") and (izquierda is not None):
-                self.alpha.append(izquierda)
-
-       
-        if op == "|" or op == "-": return self.orAndOperation(izquierda, derecha, op)
-        elif op == "*": return self.kleenOperation(derecha)
-
-
-   
-    def orAndOperation(self, izquierdo, derecho, operador):
-        
-        if (type(izquierdo) == Central) and (type(derecho) == Central):
-            if operador == "|":
-                fuente = Central(operador, None, True, [izquierdo, derecho], izquierdo.verificador or derecho.verificador)
-                self.nodos += [fuente]
-                return fuente
-            elif operador == "-":
-                fuente = Central(operador, None, True, [izquierdo, derecho], izquierdo.verificador and derecho.verificador)
-                self.nodos += [fuente]
-                return fuente
-
-        
-        elif (type(izquierdo) != Central) and (type(derecho) != Central):
-            if operador == "|":
-                etiqueta_izquierda = self.arbol + 1  if izquierdo not in "E" else None
-                etiqueta_derecha = self.arbol + 2  if derecho not in "E" else None
-                self.arbol = self.arbol + 2
-                nodo_izquierdo = Central(izquierdo, etiqueta_izquierda, False, [], False)
-                nodo_derecho = Central(derecho, etiqueta_derecha, False, [], False)
-                fuente = Central(operador, None, True, [nodo_izquierdo, nodo_derecho], nodo_izquierdo.verificador or nodo_derecho.verificador)
-                self.nodos += [nodo_izquierdo, nodo_derecho, fuente]
-                return fuente
-            elif operador == "-":
-                etiqueta_izquierda = self.arbol + 1  if izquierdo not in "E" else None
-                etiqueta_derecha = self.arbol + 2  if derecho not in "E" else None
-                self.arbol = self.arbol + 2
-                nodo_izquierdo = Central(izquierdo, etiqueta_izquierda, False, [], False)
-                nodo_derecho = Central(derecho, etiqueta_derecha, False, [], False)
-                fuente = Central(operador, None, True, [nodo_izquierdo, nodo_derecho], nodo_izquierdo.verificador and nodo_derecho.verificador)
-                self.nodos += [nodo_izquierdo, nodo_derecho, fuente]
-                return fuente
-
-       
-        elif (type(izquierdo) == Central) and (type(derecho) != Central):
-            if operador == "|":
-                etiqueta_derecha = self.arbol + 1  if derecho not in "E" else None
-                self.arbol = self.arbol + 1
-                nodo_derecho = Central(derecho, etiqueta_derecha, False, [], False)
-                fuente = Central(operador, None, True, [izquierdo, nodo_derecho], izquierdo.verificador or nodo_derecho.verificador)
-                self.nodos += [nodo_derecho, fuente]
-                return fuente
-            elif operador == "-":
-                etiqueta_derecha = self.arbol + 1  if derecho not in "E" else None
-                self.arbol = self.arbol + 1
-                nodo_derecho = Central(derecho, etiqueta_derecha, False, [], False)
-                fuente = Central(operador, None, True, [izquierdo, nodo_derecho], izquierdo.verificador and nodo_derecho.verificador)
-                self.nodos += [nodo_derecho, fuente]
-                return fuente
-
-       
-        elif (type(izquierdo) != Central) and (type(derecho) == Central):
-            if operador == "|":
-                etiqueta_izquierda = self.arbol + 1  if izquierdo not in "E" else None
-                self.arbol = self.arbol + 1
-                nodo_izquierdo = Central(izquierdo, etiqueta_izquierda, False, [], False)
-                fuente = Central(operador   , None, True, [nodo_izquierdo, derecho], nodo_izquierdo.verificador or derecho.verificador)
-                self.nodos += [nodo_izquierdo, fuente]
-                return fuente
-
-            elif operador == "-":
-                etiqueta_izquierda = self.arbol + 1  if izquierdo not in "E" else None
-                self.arbol = self.arbol + 1
-                nodo_izquierdo = Central(izquierdo, etiqueta_izquierda, False, [], False)
-                fuente = Central(operador, None, True, [nodo_izquierdo, derecho], nodo_izquierdo.verificador and derecho.verificador)
-                self.nodos += [nodo_izquierdo, fuente]
-                return fuente
-
-
-    def kleenOperation(self, nodo_hijo):
-       
-        if (type(nodo_hijo) == Central):
-            fuente_interrogacion = Central("*", None, True, [nodo_hijo], True)
-            self.nodos += [fuente_interrogacion]
-            return fuente_interrogacion
-        # Caso el nodo hijo no exista
+### Funcion que permite sustituir las expresiones de ? y + por sus equivalencias
+def sustitucionPrevia(expresion):
+    for nodo in range(len(expresion)):
+        if type(expresion[nodo]) == list:
+            sustitucionPrevia(expresion[nodo])
         else:
-            identificador = self.arbol + 1 if nodo_hijo not in "E" else None
-            self.arbol = self.arbol + 1
-            var_nodo_hijo = Central(nodo_hijo, identificador, False, [], False)
-            fuente_interrogacion = Central("*", None, True, [var_nodo_hijo], True)
-            self.nodos += [var_nodo_hijo, fuente_interrogacion]
-            return fuente_interrogacion
+            ### Revisar si es un nodo que no es un operador
+            if is_op(expresion[nodo]):
+                ### Si es un operador hay que ver si se debe sustituir + y ?
+                if expresion[nodo] == '?':
+                    expresion.pop()
+                    nodoAnterior = expresion.pop()
+                    expresion.append(copy.deepcopy(nodoAnterior))
+                    expresion.append('|')
+                    expresion.append('ε')
+                elif expresion[nodo] == '+':
+                    expresion.pop()
+                    nodoAnterior = expresion.pop()
+                    expresion.append([copy.deepcopy(nodoAnterior), '*'])
+                    expresion.append(copy.deepcopy(nodoAnterior))
 
+    return expresion
 
-   
-    def get_all_follow_pos(self):
-        for x in self.nodos:
-            if not x.operador and not x.verificador:
-                self.set_follow_pos(x.arbol, [])
+### Funcion que permite tomar una expresion en forma de listas (arbol) y reemplazar los caracteres por Nodos AFD's Base
+def traduccionBase(expresion, correlat, correspondencias):
+    correlativo = correlat
+    
+    ### Por cada nodo en la expresion
+    for nodo in range(len(expresion)):
+        ### Si el elemento es otra lista, llamamos recursivamente al metodo
+        if type(expresion[nodo]) == list:
+            _, correlativo, _ = traduccionBase(expresion[nodo], correlativo, correspondencias)
+        ### En caso el elemento sea un caracter
+        else:
+            ### Revisar si es un nodo que no es un operador
+            if not is_op(expresion[nodo]):
+                ### Si es un caracter vamos a crear el nodo y reemplazarlo en el arreglo original
+                nuevoNodo = Nodo(expresion[nodo])
+                correlativo = nuevoNodo.operacionesBase(correlativo)
+                expresion[nodo] = nuevoNodo
+                ### Guardar la corrspondencia de posicion a simbolo
+                if nuevoNodo.exp != 'ε':
+                    correspondencias.append([nuevoNodo.exp, correlativo - 1])
 
-            if x.signo == "-":
-                primer_hijo = x.posicion[0]
-                segundo_hijo = x.posicion[1]
+    ### Se devuelve la expresion con los nodos reemplazados y un correlativo para los estados siguientes en la construccion, y tambien las correspondencia de Nodo y posicion
+    return expresion, correlativo, correspondencias
 
-                for y in primer_hijo.ultimaposicion:
-                    self.set_follow_pos(y, segundo_hijo.posicion0)
+### Funcion que nos permite obtener los nodos Hoja de la expresion en forma de listas (arbol)
+def devolverNodosHoja(expresionNodos, nodosHoj):
+    nodosHoja = nodosHoj
 
-            if x.signo == "*":
-                for y in x.ultimaposicion:
-                    self.set_follow_pos(y, x.posicion0)
+    ### Recorremos la expresion
+    for nodo in expresionNodos:
+        ### Si el elemento es otra lista, llamamos recursivamente al metodo
+        if type(nodo) == list:
+            devolverNodosHoja(nodo, nodosHoja)
+        ### Si no es una lista entonces...
+        else:
+            ### Revisar si es un nodo que no es un operador
+            if not is_op(nodo):
+                nodosHoja.append(nodo)
 
+    ### Devolver los nodos Hoja
+    return nodosHoja
 
-    def set_follow_pos(self, arbol, posicion_siguiente):
-        if arbol not in self.posiciones.keys():
-            self.posiciones[arbol] = []
+### Funcion para generar los nodos operaciones del AFD
+def definirNodosAFD(expresion, contadorExp, nodosProcess):
+    contadorNodos = contadorExp
+    nodosProcesados = nodosProcess
+    nodos = []
+    operador = ''
 
-        self.posiciones[arbol] += posicion_siguiente
-        self.posiciones[arbol] = set_to_list(self.posiciones[arbol])
+    ### Se itera sobre los elementos de la expresion
+    for nodo in range(len(expresion)):
+        ### Si es una lista entonces hay que hacer el proceso recursivo
+        if type(expresion[nodo]) == list:
+            nodo, _ = definirNodosAFD(expresion[nodo], 0, nodosProcesados)
 
-    def get_node_by_id(self, arbol):
-        for x in self.nodos:
-            if x.arbol == arbol:
-                return x
+            ### Revisamos la info previa al nodo para revisar si hay que hacer alguna operacion con el nodo devuelto
+            if contadorNodos > 0:
+                if contadorNodos > 0 and contadorNodos < 2 and operador != '|':
+                    ### Vamos a crear un Nodo Concat y lo guardamos en nodosProcesados y agregar a nodos
+                    nodoNuevo = concatAFD(nodos, nodo)
+                    nodosProcesados.append(nodoNuevo)
+                    nodos = [nodoNuevo]
+                    contadorNodos = 1
 
-
-    def create(self):
-        estado_inicial = self.epicentro.posicion0
-        nodo_estado_inicial = afd_node(self.set_name(), estado_inicial, 2)
-        self.estados.append(nodo_estado_inicial)
-        self.estado0 = nodo_estado_inicial.signo
-
-       
-        if self.estadoF in [x for x in nodo_estado_inicial.nodos]:
-            self.estdosAceptacion.append(nodo_estado_inicial.signo)
-
-       
-        estados_etiquetados = [estado.terminado for estado in self.estados]
-        while False in estados_etiquetados:
-            
-            for estado in self.estados:
-                if not estado.terminado:
-                    estados_sin_etiqeutar = estado
-                    break
-            estados_sin_etiqeutar.terminado = True
-            
-            
-            for s in self.alpha:
-                if type(s) != Central:
-                    siguiente_pos_entry = []
-                    for x in estados_sin_etiqeutar.nodos:
-                        if self.get_node_by_id(x).signo == s:
-                            siguiente_pos_entry += self.posiciones [x]
-                    siguiente_pos_entry = set_to_list(siguiente_pos_entry)
-                    
-                    if siguiente_pos_entry is empty:
-                        continue
-                    nuevo = afd_node(self.set_name(), siguiente_pos_entry, 2)
-
-                    
-                    if nuevo.estados not in [estado.estados for estado in self.estados] and nuevo.estados != "":
-                        if self.estadoF in [nodo for nodo in nuevo.nodos]:
-                            self.estdosAceptacion .append(nuevo.signo)
-                        self.estados.append(nuevo)
-                        self.transiciones.append([estados_sin_etiqeutar.signo, s, nuevo.signo])
-                    
+                elif contadorNodos > 0 and contadorNodos < 2 and operador == '|':
+                    ### Vamos a crear un Nodo OR y lo guardamos en nodosProcesados y agregar a nodos
+                    nodoNuevo = orAFD(nodos, nodo)
+                    nodosProcesados.append(nodoNuevo)
+                    nodos = [nodoNuevo]
+                    contadorNodos = 1
+                    operador = ''
+            else:
+                ### Guardamos el nodo si no hay con que operar, agregar a nodos
+                nodos.append(nodo)
+                contadorNodos = contadorNodos + 1
+        else:
+            ### Si es un nodo o un operador hay que guardar el nodo, o guardar la expresion, u operar si ya es posible con
+            ### los nodos almacenados y el operador
+            if contadorNodos > 0:
+                if (expresion[nodo] == '*') and contadorNodos == 1:
+                    ### Guardamos el nodo como un * y agregamos a nodosProcesados
+                    if expresion[nodo] == '*':
+                        nodoNuevo = cerraduraAFD(nodos)
+                        nodosProcesados.append(nodoNuevo)
+                        nodos = [nodoNuevo]
+                        contadorNodos = 1
+                elif not is_op(expresion[nodo]) and (contadorNodos < 2 and contadorNodos > 0)  and operador != '|':
+                    ### Vamos a crear un Nodo Concat y lo guardamos en nodosProcesados y agregar a nodos
+                    nodoNuevo = concatAFD(nodos, expresion[nodo])
+                    nodosProcesados.append(nodoNuevo)
+                    nodos = [nodoNuevo]
+                    contadorNodos = 1
+                else:
+                    ### Vamos a revisar si ya podemos operar el OR
+                    if not is_op(expresion[nodo]) and (contadorNodos < 2 and contadorNodos > 0) and operador == '|':
+                        ### Vamos a crear un Nodo OR y lo guardamos en nodosProcesados y agregar a nodos
+                        nodoNuevo= orAFD(nodos, expresion[nodo])
+                        nodosProcesados.append(nodoNuevo)
+                        nodos = [nodoNuevo]
+                        contadorNodos = 1
+                        operador = ''
                     else:
-                        self.nombre -= 1
-                        for estado in self.estados:
-                            if nuevo.estados == estado.estados:
-                                self.transiciones.append([estados_sin_etiqeutar.signo, s, estado.signo])
-                            
-            estados_etiquetados = [estado.terminado for estado in self.estados]
+                        ### Guardamos el operador | entre los nodos y agregamos la cantidad de nodos
+                        operador = '|'
+            else:
+                ### Guardamos en nodos y tambien en nodosProcesados
+                nodos.append(expresion[nodo])
+                contadorNodos = contadorNodos + 1
 
+    ### Se devuelve el Nodo raiz y los nodos que se generaron en la construccion del nodo Raiz
+    return nodos[0], nodosProcesados
 
+### Funcion para construir la tabla de Followpos dados los nodos utilizados y las posiciones inciales
+def followpos(nodos, posiciones):
+    tablaFollowpos = {}
 
+    ### Obtenemos las posiciones para la tabla followpos
+    for posicion in posiciones:
+        tablaFollowpos[posicion[1]] = []
 
+    ### Iteramos sobre los nodos
+    for nodo in nodos:
+        ### Si el nodo es una CONCATENACION o KLEEN procedemos
+        if (nodo.tipoNodo == '.') or (nodo.tipoNodo == '*'):
+            ### Si es un KLEEN obtenemos followpos segun la regla 
+            if nodo.tipoNodo == '*':
+                for pos in nodo.lastpos:
+                    for posi in nodo.firstpos:
+                        tablaFollowpos[pos].append(posi)
+            ### Si es una CONCATENACION obtenemos followpos segun la regla 
+            elif nodo.tipoNodo == '.':
+                c1 = nodo.hijos[0]
+                c2 = nodo.hijos[1]
+                for pos in c1.lastpos:
+                    for posi in c2.firstpos:
+                        tablaFollowpos[pos].append(posi)
 
+    ### Limpiar la tabla para crear conjuntos sin elementos repetidos
+    for key in tablaFollowpos:
+        tablaFollowpos[key] = list(dict.fromkeys(tablaFollowpos[key]))
 
+    ### Se devuelve la tabla Followpos
+    return tablaFollowpos
 
+### Funcion para determinar los simbolos de la expresion para el AFD
+def simbolosAFDDirecta(correspondencias):
+    simbolos = []
+    ### Obtenemos todos los simbolos
+    for simbolo in correspondencias:
+        simbolos.append(simbolo[0])
 
+    ### Limpiar la tabla para crear conjuntos sin elementos repetidos y quitar el simbolo #
+    simbolos = list(dict.fromkeys(simbolos))
+    simbolos.remove('#')
 
-        
+    return simbolos
 
-        
+### Funciones para el proceso de obtener Dstates y Dtrans
+### Funcion para determinar si al menos un estado de Dstates NO ESTA MARCADO
+def there_is_unmarked(Dstates):
+    for i in Dstates:
+        if i[1] == 0:
+            return True
+    return False
+
+### Funcion para devolver el primer estado NO MARCADO de Dstates
+def return_first_unmarked(Dstates):
+    for i in Dstates:
+        if i[1] == 0:
+            return i
+    return False
+
+### Funcion para devolver los conjuntos de estadoos de la estructura Dstates
+def return_states_D(Dstates):
+    estados = []
+    for estado in Dstates:
+        estados.append(estado[0])
+
+    return estados
+
+### Funcion para determinar si un estado esta dentro de Dstates (a forma de conjuntos)
+def state_in_states(estado, Dstates):
+    for Dstate in Dstates:
+        if len(estado) == len(Dstate):
+            keep = True
+            for elemento in estado:
+                if elemento not in Dstate:
+                    keep = False
+                    break
+            if keep:
+                return True
+    return False
+
+### Funcion para devolver un estado que este en Dstates (a forma de conjuntos)
+def return_state_in_states(estado, Dstates):
+    for Dstate in Dstates:
+        if len(estado) == len(Dstate[0]):
+            keep = True
+            for elemento in estado:
+                if elemento not in Dstate[0]:
+                    keep = False
+                    break
+            if keep:
+                return Dstate
+    return False
+
+### Funcion para determinar la correspondencias a forma de posiciones
+def buscar_correspondencia(S, simbolo, correspondencias):
+    busqueda = []
+
+    ### Se hace una busqueda segun la posicion en S[0]
+    for posicion in S[0]:
+        for correspondencia in correspondencias:
+            if (correspondencia[1] == posicion) and (correspondencia[0] == simbolo):
+                busqueda.append(posicion)
+
+    return busqueda
+
+### Funcion para hacer la traduccion de Nodos a un AFD con el nodo raiz, los simbolos de la expresion, la tabla de followpos y las correspondencias
+def traduccionAFDDirecta(nodoRoot, simbolos, followpos, correspondencias):
+    Dstates = []
+    Dtran = []
+    contador = 0
+    ### Unmarked = 0 | Marked = 1
+    ### Estructura [EstadosAFN, Mark, EstadoAFD]
+    Dstates.append([nodoRoot.firstpos, 0, contador])
+    while there_is_unmarked(Dstates):
+        ### Marcar un estado S
+        estadoS = return_first_unmarked(Dstates)
+        estadoS[1] = 1
+        ### Ciclo para cada simbolo del Nodo
+        if 'ε' in simbolos:
+            simbolos.remove('ε')
+        for simbolo in simbolos:
+            ### Busco los valores dentro de S que correspondan a 
+            posiciones = buscar_correspondencia(estadoS, simbolo, correspondencias)
+            ### Calcular followpos de todas las posiciones y Unirlos
+            U = []
+            for posicion in posiciones:
+                U = U + copy.deepcopy(followpos[posicion])
+            U = list(dict.fromkeys(U))
+
+            ### Obtener los estados de U
+            DOnlyStates = return_states_D(Dstates)
+            nuevoEstado = []
+            if U:
+                if not state_in_states(U, DOnlyStates):
+                    contador = contador + 1
+                    nuevoEstado = [U, 0, contador]
+                    Dstates.append([U, 0, contador])
+                else:
+                    nuevoEstado = return_state_in_states(U, Dstates)
+
+                ### Agregar U a Dtran como una lista [estadoAFD, simboloTransicion, estadoAFD]
+                Dtran.append([estadoS[2], simbolo, nuevoEstado[2]])
+
+    return Dstates, Dtran
+
+### Funcion que permite generar un AFD en forma de Nodo a partir de Dstates, Dtran, simbolos de la expresion y la posicion de #
+def convertirAFDDirectaNodo(Dstates, Dtran, simbolos, posicionesFinales):
+    nodo = Nodo('')
+
+    nodo.posicionesFinalesAFD1 = posicionesFinales
+    nodo.dStatesAFD1 = Dstates
+
+    ### Agregar simbolos de AFD
+    simbol = copy.deepcopy(simbolos)
+    if 'ε' in simbol:
+        simbol.remove('ε')
+    nodo.simbolos = simbol
+
+    ### Agregar estados de AFD Directa
+    for estado in Dstates:
+        nodo.estados.append(estado[2])
+    
+    ### Agregar estado inicial de AFD Directa
+    nodo.estadoInicial.append(Dstates[0][2])
+
+    ### Agregar estados finales de AFD Directa
+    for estado in Dstates:
+        for posicionFinal in posicionesFinales:
+            if posicionFinal in estado[0]:
+                nodo.estadosFinales.append(estado[2])
+
+    ### Agregar transiciones de AFD
+    nodo.transiciones = copy.deepcopy(Dtran)
+
+    return nodo

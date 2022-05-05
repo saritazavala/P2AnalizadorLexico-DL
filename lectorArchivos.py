@@ -1,4 +1,4 @@
-
+import convertidor
 #Primero vamos a definar las variables fijas quen un archivo cocol tiene
 
 COMPILER = 'COMPILER'

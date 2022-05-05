@@ -1,5 +1,5 @@
 from lectorArchivos import *
-
+import convertidor
 # Main
 
 fileName = input("Ingrese el nombre de su archivo ")
@@ -211,4 +211,4 @@ for regex in dictTokens.values():
     expresion = expresion + '(' + regex[0] + ')#|'
 
 expresion = expresion[:-1]
-bridge.automata(expresion, dictTokens, dictKeywords, whiteSpace)
+convertidor.automata(expresion, dictTokens, dictKeywords, whiteSpace)
