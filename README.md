@@ -1,2 +1,0 @@
-# AnalizadorLexico-DL
-### Sara Zavala

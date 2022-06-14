@@ -15,7 +15,7 @@ class Central():
             self.is_nulla = True
         self.asignacion_orden()
             
-    
+    #Asignacion de first y last positions
     def asignacion_orden(self):
         if self.operador:
             if self.signo == "|":

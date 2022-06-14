@@ -36,7 +36,6 @@ class Thompson:
         
     
     def compilar(self):
-        
         # print(self.maquinas)
         # self.paso_base("a") 
         # self.paso_base("b") 
@@ -77,11 +76,9 @@ class Thompson:
         punto_referencia = len(maquina2.estados) -1
 
         for estado in maquina1.estados:
-            
             if estado.tipo == 1:
                 estado.etiqueta = "s" + str(punto_referencia)
                 estado.tipo = 2
-            
             else:
                 estado.etiqueta = "s" + str((int(estado.etiqueta[1:]) + punto_referencia))
 
@@ -184,11 +181,11 @@ class Thompson:
         # ---
         afn = graphviz.Digraph('finite_state_machine', filename='AFN.gv')
         afn.attr(rankdir='LR', size='8,5')
-        afn.attr('node', shape='doublecircle')
+        afn.attr('node', shape='ellipse')
         afn.node('s0')
+        afn.attr('node', shape='doublecircle')
         afn.node(maquina.estados[-1].etiqueta)
-
-        # --
+            # --
         for estado in maquina.estados:
             #print(estado.tipo)
             if estado.tipo == 3:
@@ -219,12 +216,12 @@ class Thompson:
 
     
     def eClosure(self,states):
+        next2 = []
         while True:
             siguiente =[]    
             for s in states:
                     if s.tipo == 3 and s not in siguiente:
                         siguiente.append(s)
-
                     for i in s.transiciones:
                         #Caracter abajo
                         if i.caracter == "E":
@@ -235,7 +232,6 @@ class Thompson:
                                     break
                             if estado is not None: 
                                 if estado not in siguiente:
-
                                     if s not in siguiente:
                                         siguiente.append(s)
                                     siguiente.append(estado)
@@ -245,28 +241,18 @@ class Thompson:
                             siguiente.append(s)
             siguiente.sort(key =attrgetter("etiqueta"),reverse=False)
             if states == siguiente:
-                return siguiente  
+                for x in siguiente:
+                    if x not in next2:
+                        next2.append(x)
+                return next2  
             states = siguiente
+
+            for x in siguiente:
+                if x not in next2:
+                    next2.append(x)
         return siguiente
 
     
-    def move2(self,states,chr,maquina):
-        response = []
-        for s in states:
-            for i in s.transiciones:
-                #caracter
-                if i.caracter == chr:
-                    estado = None
-                    for st in maquina.estados:
-                        if st.label == i.destino:
-                            estado = st    
-                    if estado is not None:
-                        if estado not in response:
-                            response.append(estado)
-                    elif s not in response:
-                            response.append(s)
-
-        return response
 
 
 
@@ -275,7 +261,6 @@ class Thompson:
         estados = self.eClosure(estados)
         for i in cadena:
             estados = self.eClosure(self.move(estados,i))
-
         return  afn.estados[-1] in estados
 
     
@@ -284,14 +269,18 @@ class Thompson:
         sf =  []
         afd = graphviz.Digraph('finite_state_machine', filename='FDA.gv')
         afd.attr(rankdir='LR', size='8,5')
-        afd.attr('node', shape='doublecircle')
-        afd.node('s0')
+        #estado inicial
+
         
         for s in afd1.estados:
+            #inicial
+            if s.tipo == 1:
+                afd.attr('node', shape='ellipse')
+                afd.node('s0')
             if (s.tipo ==3):
-                
                 for t in s.transiciones:
                     print(s.etiqueta)
+                    #estados de aceptacion
                     afd.attr('node', shape='doublecircle')
                     afd.edge(s.etiqueta, t.destino, label=t.caracter)
                     sf.append(s.etiqueta)
@@ -299,8 +288,6 @@ class Thompson:
                 if len(s.transiciones) == 0:
                     afd.attr('node', shape='doublecircle')
                     afd.node(s.etiqueta)
-
-
         for st in afd1.estados:
             for t in st.transiciones:
                 if st.tipo !=3 and st.etiqueta not in sf:
@@ -311,7 +298,10 @@ class Thompson:
     def subset(self,afn):
         alpha = self.a.alfabeto(self.expresion_regular)
         #funcion que devuelve alfabeto
+        print(alpha)
         alpha.sort()
+        if "E" in alpha:
+            alpha = list(filter(lambda x:x!="E", alpha))
         afd = []
         destados = [self.eClosure([afn.estados[0]])]
         cont, indicador = 0,0
@@ -319,6 +309,7 @@ class Thompson:
             transi = []
             cont = indicador + 1
             for c in alpha:
+                aaa = self.move(destados[indicador], c)
                 temp = self.eClosure(self.move(destados[indicador],c))
                 if temp in destados:
                     arr = list(filter(lambda x: x == temp,destados)) #buscar cual existe
@@ -343,7 +334,7 @@ class Thompson:
                     tipo3 = True
                     break
             if indicador == 0:
-                afd.append(Estado("s"+str(indicador),transi,1))
+                afd.append(Estado("s"+str(indicador),transi,3 if tipo3 else 1))
             else:
                 afd.append(Estado("s"+str(indicador),transi,3 if tipo3 else 2))
             indicador =indicador +1
